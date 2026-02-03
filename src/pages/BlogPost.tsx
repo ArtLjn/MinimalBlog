@@ -1,13 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Clock, User, Twitter, Linkedin, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, User, Twitter, Linkedin, Link as LinkIcon, List } from 'lucide-react';
 import { MarkdownRenderer } from '@/components/blog/MarkdownRenderer';
 import { getGitHubService } from '@/services/github';
 import type { BlogPost as BlogPostType } from '@/types';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { toast } from 'sonner';
+
+interface TableOfContentItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+const generateTableOfContents = (content: string): TableOfContentItem[] => {
+  const items: TableOfContentItem[] = [];
+  const headingRegex = /^(#{1,6})\s+([^\n]+)/gm;
+  let match;
+  
+  while ((match = headingRegex.exec(content)) !== null) {
+    const level = match[1].length;
+    const text = match[2].trim();
+    const id = text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    
+    items.push({ id, text, level });
+  }
+  
+  return items;
+};
+
+const scrollToHeading = (id: string) => {
+  const element = document.getElementById(id);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth' });
+  }
+};
 
 // 示例文章数据
 const samplePosts: Record<string, BlogPostType> = {
@@ -77,6 +106,9 @@ export const BlogPost: React.FC = () => {
   const navigate = useNavigate();
   const [post, setPost] = useState<BlogPostType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tableOfContents, setTableOfContents] = useState<TableOfContentItem[]>([]);
+  const [activeHeading, setActiveHeading] = useState<string>('');
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadPost = async () => {
@@ -90,15 +122,28 @@ export const BlogPost: React.FC = () => {
           const githubPost = await githubService.getPost(slug);
           if (githubPost) {
             setPost(githubPost);
+            setTableOfContents(generateTableOfContents(githubPost.content));
           } else {
             // 尝试从示例数据获取
-            setPost(samplePosts[slug] || null);
+            const samplePost = samplePosts[slug] || null;
+            setPost(samplePost);
+            if (samplePost) {
+              setTableOfContents(generateTableOfContents(samplePost.content));
+            }
           }
         } catch {
-          setPost(samplePosts[slug] || null);
+          const samplePost = samplePosts[slug] || null;
+          setPost(samplePost);
+          if (samplePost) {
+            setTableOfContents(generateTableOfContents(samplePost.content));
+          }
         }
       } else {
-        setPost(samplePosts[slug] || null);
+        const samplePost = samplePosts[slug] || null;
+        setPost(samplePost);
+        if (samplePost) {
+          setTableOfContents(generateTableOfContents(samplePost.content));
+        }
       }
       
       setLoading(false);
@@ -106,6 +151,41 @@ export const BlogPost: React.FC = () => {
 
     loadPost();
   }, [slug]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!contentRef.current || tableOfContents.length === 0) return;
+
+      const headings = tableOfContents.map(item => {
+        const element = document.getElementById(item.id);
+        return { id: item.id, element };
+      }).filter(({ element }) => element !== null);
+
+      if (headings.length === 0) return;
+
+      let currentActive = headings[0].id;
+
+      for (const { id, element } of headings) {
+        if (!element) continue;
+        
+        const rect = element.getBoundingClientRect();
+        if (rect.top <= 100) {
+          currentActive = id;
+        } else {
+          break;
+        }
+      }
+
+      setActiveHeading(currentActive);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // 初始检查
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [tableOfContents]);
 
   const handleShare = async (platform: 'twitter' | 'linkedin' | 'copy') => {
     const url = window.location.href;
@@ -225,6 +305,7 @@ export const BlogPost: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-12">
           {/* Main Content */}
           <motion.div
+            ref={contentRef}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -280,6 +361,39 @@ export const BlogPost: React.FC = () => {
           {/* Sidebar */}
           <aside className="hidden lg:block">
             <div className="sticky top-24 space-y-8">
+              {/* Table of Contents */}
+              {tableOfContents.length > 0 && (
+                <div className="p-5 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-5">
+                    <List className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">文章目录</h3>
+                  </div>
+                  <nav className="space-y-2">
+                    {tableOfContents.map((item) => {
+                      const indent = (item.level - 1) * 0.5; // 每个级别缩进0.5rem
+                      const isActive = activeHeading === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => scrollToHeading(item.id)}
+                          className={`w-full text-left px-4 py-2 rounded-md transition-all duration-200 ${isActive ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 font-semibold' : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                          style={{ 
+                            paddingLeft: `${indent + 1}rem`,
+                            borderLeft: `${item.level <= 2 ? '3px' : '0px'} solid ${item.level <= 2 ? (isActive ? 'var(--color-primary-500)' : 'transparent') : 'transparent'}`,
+                            marginLeft: item.level <= 2 ? '0rem' : '0rem',
+                            fontSize: '0.95rem',
+                            lineHeight: '1.4',
+                            fontWeight: isActive ? '600' : item.level <= 2 ? '500' : '400'
+                          }}
+                        >
+                          {item.text}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
+
               {/* Author Card */}
               {post.author && (
                 <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
