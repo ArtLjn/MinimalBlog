@@ -48,6 +48,12 @@ export class GitHubService {
         // 路径不存在，这是正常的，说明仓库存在但路径可能还没有创建
         // 我们可以继续，因为创建文件时会自动创建路径
         try {
+          if (!this.octokit) {
+            return {
+              success: false,
+              error: 'Octokit not initialized',
+            };
+          }
           // 再次验证用户信息，确保 Token 有效
           const { data: userData } = await this.octokit.rest.users.getAuthenticated();
           return {
@@ -291,6 +297,7 @@ export class GitHubService {
           const filePath = `${this.config.path}${slug}.md`;
           
           try {
+            if (!this.octokit) return;
             // 先获取文件的 sha
             const { data: fileData } = await this.octokit.rest.repos.getContent({
               owner: this.config.owner,
@@ -298,7 +305,7 @@ export class GitHubService {
               path: filePath,
             });
 
-            if (!Array.isArray(fileData) && 'sha' in fileData) {
+            if (!Array.isArray(fileData) && 'sha' in fileData && this.octokit) {
               await this.octokit.rest.repos.deleteFile({
                 owner: this.config.owner,
                 repo: this.config.repo,
