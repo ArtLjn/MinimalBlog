@@ -41,7 +41,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [tags, setTags] = useState(initialPost?.tags?.join(', ') || '');
   const [coverImage, setCoverImage] = useState(initialPost?.coverImage || '');
   const [content, setContent] = useState(initialPost?.content || '');
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [categories, setCategories] = useState<Category[]>([]);
 
   // 自动保存草稿到 localStorage
@@ -246,29 +245,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             </button>
           ))}
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab('edit')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'edit'
-                ? 'bg-[var(--color-primary-500)] text-black'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            编辑
-          </button>
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'preview'
-                ? 'bg-[var(--color-primary-500)] text-black'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            预览
-          </button>
-        </div>
       </div>
 
       {/* Editor / Preview */}
@@ -276,31 +252,39 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {/* Editor */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: activeTab === 'edit' ? 1 : 0, display: activeTab === 'edit' ? 'block' : 'none' }}
+          animate={{ opacity: 1 }}
           className="min-h-[500px]"
         >
+          <div className="flex items-center justify-between px-6 py-3 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl border-b border-gray-200 dark:border-gray-800">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">编辑区</span>
+          </div>
           <TextareaAutosize
             id="markdown-editor"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="开始写作..."
-            className="w-full min-h-[500px] p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)] font-mono text-sm leading-relaxed"
+            className="w-full min-h-[450px] p-6 bg-white dark:bg-gray-900 border border-t-0 border-gray-200 dark:border-gray-800 rounded-b-2xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)] font-mono text-sm leading-relaxed"
           />
         </motion.div>
 
         {/* Preview */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: activeTab === 'preview' ? 1 : 1, display: activeTab === 'preview' ? 'block' : 'none' }}
-          className="min-h-[500px] p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-auto"
+          animate={{ opacity: 1 }}
+          className="min-h-[500px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-auto"
         >
-          {content ? (
-            <MarkdownRenderer content={content} />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-400">
-              <p>预览将显示在这里</p>
-            </div>
-          )}
+          <div className="flex items-center justify-between px-6 py-3 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl border-b border-gray-200 dark:border-gray-800">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">预览区</span>
+          </div>
+          <div className="p-6">
+            {content ? (
+              <MarkdownRenderer content={content} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-400">
+                <p>预览将显示在这里</p>
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
 
